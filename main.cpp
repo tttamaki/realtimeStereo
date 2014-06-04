@@ -59,19 +59,157 @@ if (error != FlyCapture2::PGRERROR_OK) \
 //! \param FlyCapture2::CameraInfo* pCamInfo
 //!
 //!
-void PrintCameraInfo( const FlyCapture2::CameraInfo* pCamInfo )
+void PrintCameraInfo( const FlyCapture2::CameraInfo &pCamInfo )
 {
     std::cout <<
               "*** CAMERA INFORMATION ***" << std::endl <<
-              "Serial number - "      << pCamInfo->serialNumber << std::endl <<
-              "Camera model -  "      << pCamInfo->modelName << std::endl <<
-              "Camera vendor - "      << pCamInfo->vendorName << std::endl <<
-              "Sensor -        "      << pCamInfo->sensorInfo << std::endl <<
-              "Resolution -    "      << pCamInfo->sensorResolution << std::endl <<
-              "Firmware version -   " << pCamInfo->firmwareVersion << std::endl <<
-              "Firmware build time -" << pCamInfo->firmwareBuildTime << std::endl;
+              "Serial number - "      << pCamInfo.serialNumber << std::endl <<
+              "Camera model -  "      << pCamInfo.modelName << std::endl <<
+              "Camera vendor - "      << pCamInfo.vendorName << std::endl <<
+              "Sensor -        "      << pCamInfo.sensorInfo << std::endl <<
+              "Resolution -    "      << pCamInfo.sensorResolution << std::endl <<
+              "Firmware version -   " << pCamInfo.firmwareVersion << std::endl <<
+              "Firmware build time -" << pCamInfo.firmwareBuildTime << std::endl;
 
 }
+
+
+//! \brief Printing camera info
+//!
+//! \param FlyCapture2::Camera* pCamera
+//!
+//!
+void PrintCameraInfo( FlyCapture2::Camera* pCamera )
+{
+    FlyCapture2::CameraInfo camInfo;
+    FlyCapture2::Error error = pCamera->GetCameraInfo( &camInfo );
+    PRINT_ERROR( error );
+    PrintCameraInfo( camInfo );
+}
+
+
+//! \brief Printing camera property info
+//!
+//! \param const FlyCapture2::PropertyInfo &pPropInfo
+//!
+//!
+void PrintCameraPropertyInfo( const FlyCapture2::PropertyInfo &pPropInfo )
+{
+    #define PNAMES(name) #name << ": " << pPropInfo.name << std::endl
+
+    std::cout <<
+            PNAMES(present) <<
+            PNAMES(autoSupported) <<
+            PNAMES(manualSupported) <<
+            PNAMES(onOffSupported) <<
+            PNAMES(onePushSupported) <<
+            PNAMES(absValSupported) <<
+            PNAMES(readOutSupported) <<
+            PNAMES(min) <<
+            PNAMES(max) <<
+            PNAMES(absMin) <<
+            PNAMES(absMax) <<
+            PNAMES(pUnits) <<
+            PNAMES(pUnitAbbr);
+
+    #undef PNAMES
+
+}
+
+//! \brief Printing camera property
+//!
+//! \param const FlyCapture2::Property &pProp
+//!
+//!
+void PrintCameraProperty( const FlyCapture2::Property &pProp )
+{
+    #define PNAMES(name) #name << ": " << pProp.name << std::endl
+
+    std::cout <<
+            PNAMES(present) <<
+            PNAMES(absControl) <<
+            PNAMES(onePush) <<
+            PNAMES(onOff) <<
+            PNAMES(autoManualMode) <<
+            PNAMES(valueA) <<
+            PNAMES(valueB) <<
+            PNAMES(absValue);
+
+    #undef PNAMES
+}
+
+
+
+//! \brief Printing camera property info
+//!
+//! \param FlyCapture2::Camera* pCamera
+//!
+//!
+void PrintCameraPropertyInfo( FlyCapture2::Camera* pCamera )
+{
+
+    std::vector< FlyCapture2::PropertyType > types =
+        {FlyCapture2::AUTO_EXPOSURE,
+         FlyCapture2::SHUTTER,
+         FlyCapture2::GAIN,
+         FlyCapture2::GAMMA,
+         FlyCapture2::FRAME_RATE,
+         FlyCapture2::TEMPERATURE
+        }; //!< -std=c++11 initialization
+    std::vector< std::string > typenames =
+    {"AUTO_EXPOSURE",
+     "SHUTTER",
+     "GAIN",
+     "GAMMA",
+     "FRAME_RATE",
+     "TEMPERATURE"
+     }; //!< -std=c++11 initialization
+
+    FlyCapture2::PropertyInfo pPropInfo;
+    FlyCapture2::Property pProp;
+    FlyCapture2::Error error;
+
+    for ( unsigned int i = 0; i < types.size(); i++ )
+    {
+
+        pPropInfo.type = types[i];
+        error = pCamera->GetPropertyInfo( &pPropInfo );
+        PRINT_ERROR( error );
+        std::cout << "*** CAMERA PROPERTY INFO : " << typenames[i] << std::endl;
+        PrintCameraPropertyInfo( pPropInfo );
+
+        pProp.type = types[i];
+        error = pCamera->GetProperty( &pProp );
+        PRINT_ERROR( error );
+        std::cout << "*** CAMERA PROPERTY : " << typenames[i] << std::endl;
+        PrintCameraProperty( pProp );
+    }
+
+}
+
+
+
+
+float getCameraPropertyAbsValue( FlyCapture2::Camera* pCamera, FlyCapture2::PropertyType type)
+{
+    FlyCapture2::Property pProp;
+    pProp.type = type;
+    FlyCapture2::Error error = pCamera->GetProperty( &pProp );
+    PRINT_ERROR( error );
+    return pProp.absValue;
+}
+
+unsigned int getCameraPropertyValueA( FlyCapture2::Camera* pCamera, FlyCapture2::PropertyType type)
+{
+    FlyCapture2::Property pProp;
+    pProp.type = type;
+    FlyCapture2::Error error = pCamera->GetProperty( &pProp );
+    PRINT_ERROR( error );
+    return pProp.valueA;
+}
+
+
+
 
 
 //! \brief load calibration info used by cv::remap()
@@ -135,7 +273,7 @@ void prepareCameras(unsigned int &numCameras,
 
 
 
-    ppCameras = new FlyCapture2::Camera* [numCameras];
+    ppCameras = new FlyCapture2::Camera* [ numCameras ];
 
 
     //!<
@@ -157,20 +295,14 @@ void prepareCameras(unsigned int &numCameras,
         PRINT_ERROR( error );
 
 
-        //!< Get the camera information
-        {
-            FlyCapture2::CameraInfo camInfo;
+        PrintCameraInfo( ppCameras[i] );
 
-            error = ppCameras[i]->GetCameraInfo( &camInfo );
-            PRINT_ERROR( error );
-
-            PrintCameraInfo( &camInfo );
-        }
+        PrintCameraPropertyInfo( ppCameras[i] );
 
 
 
         //!< Set all cameras to a specific mode and frame rate so they can be synchronized
-        error = ppCameras[i]->SetVideoModeAndFrameRate(FlyCapture2::VIDEOMODE_640x480Y8,
+        error = ppCameras[i]->SetVideoModeAndFrameRate(FlyCapture2::VIDEOMODE_640x480Y8, //!< size of 640x480, format Mono8bit (Y8)
                                                        FlyCapture2::FRAMERATE_60 );
         PRINT_ERROR_MSG( error,
                         "Error starting cameras. \n"
@@ -299,14 +431,51 @@ int main( int /*argc*/, char** /*argv*/ )
         skip++;
 #endif
 
+        //!< normalize disparity map for imshow
         double minVal, maxVal;
         minMaxLoc( imageDisparity, &minVal, &maxVal );
         imageDisparity.convertTo( disp8U, CV_8UC1, 255/(maxVal - minVal) );
 
+
+        #define DRAWTXT(img, str, x, y, s) \
+            cv::putText( img, str, cv::Point(x,y), cv::FONT_HERSHEY_SIMPLEX, s, cv::Scalar::all(255) )
+
+        DRAWTXT(disp8U, "disparity", 10, 20, 0.5);
         cv::imshow( "disparity", disp8U );
-        cv::imshow( "cam0", *pimageCamera[1] );
-        cv::imshow( "cam1", *pimageCamera[0] );
+
+
+
+        for ( unsigned int i = 0; i < numCameras; i++ )
+        {
+            std::string msg;
+
+            msg = std::string("shutter speed: ")
+                + std::to_string( getCameraPropertyAbsValue( ppCameras[i], FlyCapture2::SHUTTER ) )
+                + std::string(" [ms]");
+            DRAWTXT( *pimageCamera[i], msg, 10, 20, 0.5 );
+            msg = std::string("gain: ")
+                + std::to_string( getCameraPropertyAbsValue( ppCameras[i], FlyCapture2::GAIN ) )
+                + std::string(" [dB]");
+            DRAWTXT( *pimageCamera[i], msg, 10, 50, 0.5 );
+            msg = std::string("AE: ")
+                + std::to_string( getCameraPropertyAbsValue( ppCameras[i], FlyCapture2::AUTO_EXPOSURE ) )
+                + std::string(" [EV]");
+            DRAWTXT( *pimageCamera[i], msg, 10, 80, 0.5 );
+            msg = std::string("temperature: ")
+                + std::to_string( getCameraPropertyAbsValue( ppCameras[i], FlyCapture2::TEMPERATURE ) )
+                + std::string(" [Celcius]");
+            DRAWTXT( *pimageCamera[i], msg, 10, 110, 0.5 );
+
+            cv::imshow( std::string("cam") + std::to_string(i), *pimageCamera[i] );
+
+
+        }
+
+
+
+
         cv::imshow( "sub",  cv::abs( *pimageCamera[0] - *pimageCamera[1] ) );
+
 
 
         char keyValue = cv::waitKey( 10 );
