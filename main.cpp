@@ -189,7 +189,12 @@ void PrintCameraPropertyInfo( FlyCapture2::Camera* pCamera )
 
 
 
-
+//! \brief Printing absValue of a camera property
+//!
+//! \param FlyCapture2::Camera* pCamera
+//! \param FlyCapture2::PropertyType type
+//!
+//!
 float getCameraPropertyAbsValue( FlyCapture2::Camera* pCamera, FlyCapture2::PropertyType type)
 {
     FlyCapture2::Property pProp;
@@ -199,6 +204,12 @@ float getCameraPropertyAbsValue( FlyCapture2::Camera* pCamera, FlyCapture2::Prop
     return pProp.absValue;
 }
 
+//! \brief Printing valueA of a camera property
+//!
+//! \param FlyCapture2::Camera* pCamera
+//! \param FlyCapture2::PropertyType type
+//!
+//!
 unsigned int getCameraPropertyValueA( FlyCapture2::Camera* pCamera, FlyCapture2::PropertyType type)
 {
     FlyCapture2::Property pProp;
@@ -207,6 +218,52 @@ unsigned int getCameraPropertyValueA( FlyCapture2::Camera* pCamera, FlyCapture2:
     PRINT_ERROR( error );
     return pProp.valueA;
 }
+
+
+
+//! \brief draw strings of camera info on image
+//!
+//! \param FlyCapture2::Camera* pCamera
+//! \param cv::Mat &img
+//!
+//!
+void drawCameraInfo( FlyCapture2::Camera* pCamera, cv::Mat &img)
+{
+
+    #define DRAWTXT(img, str, x, y, s) \
+        cv::putText( img, str, cv::Point(x,y), cv::FONT_HERSHEY_SIMPLEX, s, cv::Scalar::all(255) )
+
+    std::string msg;
+
+    msg = std::string("shutter speed: ")
+        + std::to_string( getCameraPropertyAbsValue( pCamera, FlyCapture2::SHUTTER ) )
+        + std::string(" [ms]");
+    DRAWTXT( img, msg, 10, 20, 0.5 );
+
+    msg = std::string("gain: ")
+        + std::to_string( getCameraPropertyAbsValue( pCamera, FlyCapture2::GAIN ) )
+        + std::string(" [dB]");
+    DRAWTXT( img, msg, 10, 50, 0.5 );
+
+    msg = std::string("AE: ")
+        + std::to_string( getCameraPropertyAbsValue( pCamera, FlyCapture2::AUTO_EXPOSURE ) )
+        + std::string(" [EV]");
+    DRAWTXT( img, msg, 10, 80, 0.5 );
+
+    msg = std::string("temperature: ")
+        + std::to_string( getCameraPropertyAbsValue( pCamera, FlyCapture2::TEMPERATURE ) )
+        + std::string(" [Celcius]");
+    DRAWTXT( img, msg, 10, 110, 0.5 );
+
+    #undef DRAWTXT
+}
+
+
+
+
+
+
+
 
 
 
@@ -325,6 +382,10 @@ void prepareCameras(unsigned int &numCameras,
     std::cout << "StartSyncCapture." << std::endl;
 
 }
+
+
+
+
 
 
 int main( int /*argc*/, char** /*argv*/ )
@@ -447,24 +508,10 @@ int main( int /*argc*/, char** /*argv*/ )
 
         for ( unsigned int i = 0; i < numCameras; i++ )
         {
-            std::string msg;
 
-            msg = std::string("shutter speed: ")
-                + std::to_string( getCameraPropertyAbsValue( ppCameras[i], FlyCapture2::SHUTTER ) )
-                + std::string(" [ms]");
-            DRAWTXT( *pimageCamera[i], msg, 10, 20, 0.5 );
-            msg = std::string("gain: ")
-                + std::to_string( getCameraPropertyAbsValue( ppCameras[i], FlyCapture2::GAIN ) )
-                + std::string(" [dB]");
-            DRAWTXT( *pimageCamera[i], msg, 10, 50, 0.5 );
-            msg = std::string("AE: ")
-                + std::to_string( getCameraPropertyAbsValue( ppCameras[i], FlyCapture2::AUTO_EXPOSURE ) )
-                + std::string(" [EV]");
-            DRAWTXT( *pimageCamera[i], msg, 10, 80, 0.5 );
-            msg = std::string("temperature: ")
-                + std::to_string( getCameraPropertyAbsValue( ppCameras[i], FlyCapture2::TEMPERATURE ) )
-                + std::string(" [Celcius]");
-            DRAWTXT( *pimageCamera[i], msg, 10, 110, 0.5 );
+
+            drawCameraInfo( ppCameras[i], *pimageCamera[i] );
+
 
             cv::imshow( std::string("cam") + std::to_string(i), *pimageCamera[i] );
 
