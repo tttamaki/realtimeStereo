@@ -31,6 +31,7 @@
 		<Compiler>
 			<Add option="-std=c++11" />
 			<Add option="-Wall" />
+			<Add option="-pg" />
 			<Add option="-I/home/zhao/localinstall/include/opencv" />
 			<Add option="-I/home/zhao/localinstall/include" />
 			<Add option="-I/home/zhao/localinstall/include/pcl-1.7" />
@@ -43,6 +44,7 @@
 			<Add option="-I/usr/include/eigen3" />
 		</Compiler>
 		<Linker>
+			<Add option="-pg" />
 			<Add option="-L/usr/lib/x86_64-linux-gnu/" />
 			<Add option="-L/usr/local/cuda-6.0/lib64" />
 			<Add option="-lflycapture" />

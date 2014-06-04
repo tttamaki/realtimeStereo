@@ -21,8 +21,8 @@
 
 
 
-#define USE_OPENCV
-//#define USE_ELAS
+//#define USE_OPENCV
+#define USE_ELAS
 
 
 //! \brief Printing error
@@ -443,9 +443,9 @@ int main( int /*argc*/, char** /*argv*/ )
     Elas::parameters param;
     param.postprocess_only_left = true;
     param.disp_min = 0;
-    param.disp_max = ndisparities;
+    param.disp_max = (ndisparities + 1) * 16;
     const int32_t dims[3] = {640, 480, 640};
-    Elas elas(param);
+    Elas elas( param );
     //float* D1_data = (float*)malloc(640*480*sizeof(float));
     //float* D2_data = (float*)malloc(width*height*sizeof(float));
 #endif
@@ -458,8 +458,10 @@ int main( int /*argc*/, char** /*argv*/ )
         //!< Display the timestamps for all cameras to show that the image
         //!< capture is synchronized for each image
 
+#ifdef USE_OPENCV
         sbm->setBlockSize( (blockSize + 2) * 2 + 1 );
-        sbm->setNumDisparities( (ndisparities+1) * 16 );
+        sbm->setNumDisparities( (ndisparities + 1) * 16 );
+#endif
 
         for ( unsigned int i = 0; i < numCameras; i++ )
         {
@@ -480,12 +482,14 @@ int main( int /*argc*/, char** /*argv*/ )
 #endif
 
 #ifdef USE_ELAS
-        int static skip = 0;
-        if (skip % 15 ==0)
+//        int static skip = 0;
+//        if (skip % 15 ==0)
         {
-            elas.process(imageCamera1.data, imageCamera0.data, (float*)imageDisparity.data,(float*)imageDisparity.data,dims);
+ //         elas.process(imageCamera1.data, imageCamera0.data, (float*)imageDisparity.data,(float*)imageDisparity.data, dims);
+            elas.process(pimageCamera[1]->data, pimageCamera[0]->data, (float*)imageDisparity.data,(float*)imageDisparity.data, dims);
+
         }
-        skip++;
+//        skip++;
 #endif
 
         //!< normalize disparity map for imshow
@@ -497,7 +501,7 @@ int main( int /*argc*/, char** /*argv*/ )
         #define DRAWTXT(img, str, x, y, s) \
             cv::putText( img, str, cv::Point(x,y), cv::FONT_HERSHEY_SIMPLEX, s, cv::Scalar::all(255) )
 
-        DRAWTXT(disp8U, "disparity", 10, 20, 0.5);
+        DRAWTXT( disp8U, "disparity", 10, 20, 0.5 );
         cv::imshow( "disparity", disp8U );
 
 
@@ -522,7 +526,7 @@ int main( int /*argc*/, char** /*argv*/ )
 
 
         char keyValue = cv::waitKey( 10 );
-        if  (keyValue == 'q' || keyValue == 27 /* ESC */ )
+        if (keyValue == 'q' || keyValue == 27 /* ESC */ )
         {
             break;
         }
