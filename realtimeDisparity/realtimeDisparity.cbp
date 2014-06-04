@@ -29,6 +29,7 @@
 			</Target>
 		</Build>
 		<Compiler>
+			<Add option="-std=c++11" />
 			<Add option="-Wall" />
 			<Add option="-I/home/zhao/localinstall/include/opencv" />
 			<Add option="-I/home/zhao/localinstall/include" />
@@ -80,7 +81,7 @@
 				<doxyfile_dot />
 				<general />
 			</DoxyBlocks>
-			<envvars />
+			<envvars set="localinstall_libs" />
 		</Extensions>
 	</Project>
 </CodeBlocks_project_file>
