@@ -420,18 +420,16 @@ int main( int /*argc*/, char** /*argv*/ )
 
 
 
-    //!< allocate images
-    cv::Mat imageCamera0(480, 640, CV_8UC1);
-    cv::Mat imageCamera1(480, 640, CV_8UC1);
-    std::vector< cv::Mat* > pimageCamera;
-    pimageCamera.push_back( &imageCamera0 );
-    pimageCamera.push_back( &imageCamera1 );
+    //!< Allocate images
 
+    //!< an image par camera: a vector of pointers to images (cv::Mat)
+    std::vector< std::shared_ptr< cv::Mat > > pimageCamera;
+    for ( unsigned int i = 0; i < numCameras; i++ )
+        pimageCamera.push_back( std::shared_ptr< cv::Mat > ( new cv::Mat(480, 640, CV_8UC1) ) ); //!< create cv::Mat*, cast to shared_ptr, then push_back
+
+    //!< disparity maps
     cv::Mat imageDisparity(480, 640, CV_32F), disp8U;
 
-    cv::namedWindow( "cam0", cv::WINDOW_AUTOSIZE );
-    cv::namedWindow( "cam1", cv::WINDOW_AUTOSIZE );
-    cv::namedWindow( "disparity", cv::WINDOW_AUTOSIZE );
 
 
 
@@ -439,7 +437,6 @@ int main( int /*argc*/, char** /*argv*/ )
     //!< sample code from https://github.com/Itseez/opencv/blob/52a785e95a30d9336bfbac97a0a0d0089ffaa7de/samples/cpp/stereo_match.cpp
     //!< stereo matching object
     cv::Ptr< cv::StereoBM > sbm = cv::createStereoBM( ndisparities, blockSize );
-    //cv::StereoBM SBM( cv::StereoBM::NARROW_PRESET, ndisparities, blockSize );
 #endif
 
 #ifdef USE_ELAS
@@ -480,14 +477,13 @@ int main( int /*argc*/, char** /*argv*/ )
 
 #ifdef USE_OPENCV
         sbm->compute( *pimageCamera[1], *pimageCamera[0], imageDisparity );
-        //SBM( *pimageCamera[1], *pimageCamera[0], imageDisparity, CV_16S );
 #endif
 
 #ifdef USE_ELAS
         int static skip = 0;
         if (skip % 15 ==0)
         {
-            elas.process(imageCamera1.data,imageCamera0.data, (float*)imageDisparity.data,(float*)imageDisparity.data,dims);
+            elas.process(imageCamera1.data, imageCamera0.data, (float*)imageDisparity.data,(float*)imageDisparity.data,dims);
         }
         skip++;
 #endif
