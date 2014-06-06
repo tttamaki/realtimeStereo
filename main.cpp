@@ -510,7 +510,7 @@ int main( int /*argc*/, char** /*argv*/ )
         {
 
 
-            drawCameraInfo( ppCameras[i], *pimageCamera[i] );
+            // drawCameraInfo( ppCameras[i], *pimageCamera[i] );
 
 
             cv::imshow( std::string("cam") + std::to_string(i), *pimageCamera[i] );
