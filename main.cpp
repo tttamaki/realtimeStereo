@@ -21,8 +21,9 @@
 
 
 
-//#define USE_OPENCV
-#define USE_ELAS
+#define USE_OPENCV_SBM
+//#define USE_OPENCV_SGBM
+//#define USE_ELAS
 
 
 //! \brief Printing error
@@ -280,20 +281,31 @@ void drawCameraInfo( FlyCapture2::Camera* pCamera, cv::Mat &img)
 void loadCalibrationInfo(cv::Mat& mx1,
                          cv::Mat& my1,
                          cv::Mat& mx2,
-                         cv::Mat& my2)
+                         cv::Mat& my2,
+			 cv::Mat& Q
+			)
 {
-//	cv::FileStorage fs ("../calibrationResult/Q.xml",   cv::FileStorage::READ);
-    cv::FileStorage fx1("../calibrationResult/mx1.xml", cv::FileStorage::READ);
-    cv::FileStorage fx2("../calibrationResult/mx2.xml", cv::FileStorage::READ);
-    cv::FileStorage fy1("../calibrationResult/my1.xml", cv::FileStorage::READ);
-    cv::FileStorage fy2("../calibrationResult/my2.xml", cv::FileStorage::READ);
+    cv::FileStorage fs;
+    
+    fs.open("../calibrationResult/Q.xml",   cv::FileStorage::READ);
+    fs["Q"] >> Q;
+    fs.release();
 
-//	fs["Q"] >> Q;
-    fx1["mx1"] >> mx1;
-    fx2["mx2"] >> mx2;
-    fy1["my1"] >> my1;
-    fy2["my2"] >> my2;
+    fs.open("../calibrationResult/mx1.xml", cv::FileStorage::READ);
+    fs["mx1"] >> mx1;
+    fs.release();
 
+    fs.open("../calibrationResult/mx2.xml", cv::FileStorage::READ);
+    fs["mx2"] >> mx2;
+    fs.release();
+
+    fs.open("../calibrationResult/my1.xml", cv::FileStorage::READ);
+    fs["my1"] >> my1;
+    fs.release();
+
+    fs.open("../calibrationResult/my2.xml", cv::FileStorage::READ);
+    fs["my2"] >> my2;
+    fs.release();
 }
 
 
@@ -395,20 +407,13 @@ int main( int /*argc*/, char** /*argv*/ )
 
 
 
-    //!< OpenCV control panel: block stereo matching parameters
-    cv::namedWindow("control panel", cv::WINDOW_NORMAL );
-    int ndisparities = 5;
-    cv::createTrackbar( "(n+1)x16=ndisparities", "control panel", &ndisparities, 20, NULL ); //!< ndisparities % 16 == 0, positive, ndisparities < width
-    int blockSize = 3;
-    cv::createTrackbar( "(s+2)x2+1=blockSize", "control panel", &blockSize, 30, NULL ); //!<  5 <= blocksize <= 255, odd
-
 
 
 
 
     //!< load camera calibration info
-    cv::Mat mx1, my1, mx2, my2;
-    loadCalibrationInfo(mx1, my1, mx2, my2);
+    cv::Mat mx1, my1, mx2, my2, Q;
+    loadCalibrationInfo(mx1, my1, mx2, my2, Q);
 
 
     //!< connect to cameras
@@ -432,13 +437,57 @@ int main( int /*argc*/, char** /*argv*/ )
 
 
 
+    
+    
+    
+    //!< OpenCV control panel: block stereo matching parameters
+    cv::namedWindow("control panel", cv::WINDOW_NORMAL );
+    int ndisparities = 5;
+    cv::createTrackbar( "(n+1)x16=ndisparities", "control panel", &ndisparities, 20, NULL ); //!< ndisparities % 16 == 0, positive, ndisparities < width
+    int blockSize = 5;
+    cv::createTrackbar( "(s+2)x2+1=blockSize", "control panel", &blockSize, 30, NULL ); //!<  5 <= blocksize <= 255, odd
 
-#ifdef USE_OPENCV
+
+#define ADDBAR( name1 , name2 , init, maxval ) \
+    int name1 = 5; \
+    cv::createTrackbar( #name1, "control panel", &name1, maxval, NULL ); \
+    sbm->name2( name1 );
+
+    
+
+#ifdef USE_OPENCV_SBM
     //!< sample code from https://github.com/Itseez/opencv/blob/52a785e95a30d9336bfbac97a0a0d0089ffaa7de/samples/cpp/stereo_match.cpp
     //!< stereo matching object
     cv::Ptr< cv::StereoBM > sbm = cv::createStereoBM( ndisparities, blockSize );
+    //sbm->setPreFilterType( cv::StereoBM::PREFILTER_NORMALIZED_RESPONSE );
+    //sbm->setPreFilterType( cv::StereoBM::PREFILTER_XSOBEL );
+
+    ADDBAR( textureThreshold, setTextureThreshold, 5, 30 );
+    ADDBAR( smallerBlockSize, setSmallerBlockSize, 5, 30 );
+    
+#endif
+    
+#ifdef USE_OPENCV_SGBM
+    //!< sample code from https://github.com/Itseez/opencv/blob/52a785e95a30d9336bfbac97a0a0d0089ffaa7de/samples/cpp/stereo_match.cpp
+    cv::Ptr< cv::StereoSGBM > sbm = cv::createStereoSGBM( 0, ndisparities, blockSize );
+
+    //!< parameters from http://www.jayrambhia.com/blog/disparity-maps/
+    ADDBAR( P1, setP1, 500, 1000 );
+    ADDBAR( P2, setP2, 2000, 3000 );
 #endif
 
+#if defined(USE_OPENCV_SBM) || defined(USE_OPENCV_SGBM)
+    ADDBAR( preFilterCap, setPreFilterCap, 4, 20 );
+    //sbm->setMinDisparity( 0 );
+    //sbm->setNumDisparities( ndisparities );
+    ADDBAR( uniquenessRatio, setUniquenessRatio, 10, 20 );
+    ADDBAR( speckleWindowSize, setSpeckleWindowSize, 150, 200 );
+    ADDBAR( speckleRange, setSpeckleRange, 2, 10 );
+    ADDBAR( disp12MaxDiff, setDisp12MaxDiff, 5, 20 );
+#endif
+    
+    
+    
 #ifdef USE_ELAS
     Elas::parameters param;
     param.postprocess_only_left = true;
@@ -450,19 +499,45 @@ int main( int /*argc*/, char** /*argv*/ )
     //float* D2_data = (float*)malloc(width*height*sizeof(float));
 #endif
 
+    
+    
+    
+    
+    
+    
+    
+    
+    
 
     FlyCapture2::Image rawImage; //!< buffer
 
     while ( 1 )
     {
         //!< Display the timestamps for all cameras to show that the image
-        //!< capture is synchronized for each image
+      //!< capture is synchronized for each image
+      
+      #if defined(USE_OPENCV_SBM)
+      sbm->setTextureThreshold( textureThreshold );
+      sbm->setSmallerBlockSize( smallerBlockSize );
+      #endif
 
-#ifdef USE_OPENCV
-        sbm->setBlockSize( (blockSize + 2) * 2 + 1 );
-        sbm->setNumDisparities( (ndisparities + 1) * 16 );
-#endif
-
+      #if defined(USE_OPENCV_SGBM)
+      sbm->setP1( P1 );
+      sbm->setP2( P2 );
+      #endif
+      
+      #if defined(USE_OPENCV_SBM) || defined(USE_OPENCV_SGBM)
+      sbm->setBlockSize( (blockSize + 2) * 2 + 1 );
+      sbm->setNumDisparities( (ndisparities + 1) * 16 );
+      
+      sbm->setUniquenessRatio( uniquenessRatio );
+      sbm->setSpeckleWindowSize( speckleWindowSize );
+      sbm->setSpeckleRange( speckleRange );
+      sbm->setDisp12MaxDiff( disp12MaxDiff );
+      #endif
+      
+      
+      
         for ( unsigned int i = 0; i < numCameras; i++ )
         {
             FlyCapture2::Error error;
@@ -477,7 +552,7 @@ int main( int /*argc*/, char** /*argv*/ )
         cv::remap( *pimageCamera[0], *pimageCamera[0], mx2, my2, cv::INTER_LINEAR );
 
 
-#ifdef USE_OPENCV
+#if defined(USE_OPENCV_SBM) || defined(USE_OPENCV_SGBM)
         sbm->compute( *pimageCamera[1], *pimageCamera[0], imageDisparity );
 #endif
 
