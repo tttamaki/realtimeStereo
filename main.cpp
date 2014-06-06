@@ -21,9 +21,9 @@
 
 
 
-#define USE_OPENCV_SBM
+//#define USE_OPENCV_SBM
 //#define USE_OPENCV_SGBM
-//#define USE_ELAS
+#define USE_ELAS
 
 
 //! \brief Printing error
@@ -505,38 +505,62 @@ int main( int /*argc*/, char** /*argv*/ )
     
     
     
+  
+    
+    pcl::PointCloud< pcl::PointXYZ >::Ptr pointCloudFromDepth_ptr ( new pcl::PointCloud< pcl::PointXYZ > );
+    {
+	pcl::PointXYZ initPoint;
+	initPoint.x = 0;
+	initPoint.y = 0;
+	initPoint.z = 0;
+	pointCloudFromDepth_ptr->points.push_back( initPoint );
+	pointCloudFromDepth_ptr->width = (int) pointCloudFromDepth_ptr->points.size ();
+	pointCloudFromDepth_ptr->height = 1;
+    }
+    
+    boost::shared_ptr< pcl::visualization::PCLVisualizer > viewer (new pcl::visualization::PCLVisualizer ("3D Viewer"));
+    viewer->setBackgroundColor (0, 0, 0);
+    viewer->addPointCloud<pcl::PointXYZ> (pointCloudFromDepth_ptr, "my points");
+    viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "my points");
+    viewer->addCoordinateSystem (1.0, "global");
+    viewer->initCameraParameters ();
     
     
     
-
     FlyCapture2::Image rawImage; //!< buffer
+    
+    
 
     while ( 1 )
     {
-        //!< Display the timestamps for all cameras to show that the image
-      //!< capture is synchronized for each image
-      
-      #if defined(USE_OPENCV_SBM)
-      sbm->setTextureThreshold( textureThreshold );
-      sbm->setSmallerBlockSize( smallerBlockSize );
-      #endif
-
-      #if defined(USE_OPENCV_SGBM)
-      sbm->setP1( P1 );
-      sbm->setP2( P2 );
-      #endif
-      
-      #if defined(USE_OPENCV_SBM) || defined(USE_OPENCV_SGBM)
-      sbm->setBlockSize( (blockSize + 2) * 2 + 1 );
-      sbm->setNumDisparities( (ndisparities + 1) * 16 );
-      
-      sbm->setUniquenessRatio( uniquenessRatio );
-      sbm->setSpeckleWindowSize( speckleWindowSize );
-      sbm->setSpeckleRange( speckleRange );
-      sbm->setDisp12MaxDiff( disp12MaxDiff );
-      #endif
-      
-      
+	//!< Display the timestamps for all cameras to show that the image
+	//!< capture is synchronized for each image
+	
+	#if defined(USE_OPENCV_SBM)
+	sbm->setTextureThreshold( textureThreshold );
+	sbm->setSmallerBlockSize( smallerBlockSize );
+	#endif
+	
+	#if defined(USE_OPENCV_SGBM)
+	sbm->setP1( P1 );
+	sbm->setP2( P2 );
+	#endif
+	
+	#if defined(USE_OPENCV_SBM) || defined(USE_OPENCV_SGBM)
+	sbm->setBlockSize( (blockSize + 2) * 2 + 1 );
+	sbm->setNumDisparities( (ndisparities + 1) * 16 );
+	
+	sbm->setUniquenessRatio( uniquenessRatio );
+	sbm->setSpeckleWindowSize( speckleWindowSize );
+	sbm->setSpeckleRange( speckleRange );
+	sbm->setDisp12MaxDiff( disp12MaxDiff );
+	#endif
+	
+#ifdef USE_ELAS
+	param.disp_max = (ndisparities + 1) * 16;
+	elas.setParameters( param );
+#endif
+	
       
         for ( unsigned int i = 0; i < numCameras; i++ )
         {
@@ -573,39 +597,58 @@ int main( int /*argc*/, char** /*argv*/ )
         imageDisparity.convertTo( disp8U, CV_8UC1, 255/(maxVal - minVal) );
 
 
-        #define DRAWTXT(img, str, x, y, s) \
-            cv::putText( img, str, cv::Point(x,y), cv::FONT_HERSHEY_SIMPLEX, s, cv::Scalar::all(255) )
+	#define DRAWTXT(img, str, x, y, s) \
+	cv::putText( img, str, cv::Point(x,y), cv::FONT_HERSHEY_SIMPLEX, s, cv::Scalar::all(255) )
+	
+	DRAWTXT( disp8U, "disparity", 10, 20, 0.5 );
+	cv::imshow( "disparity", disp8U );
+	
+	
+	
+	
+	//!< disparity map --> depth map --> point cloud
+	cv::Mat depth;
+	cv::reprojectImageTo3D( imageDisparity, depth, Q );
+	cv::Mat pointCloudFromDepth = depth.reshape( 3, depth.size().area() );
+	pointCloudFromDepth_ptr->clear();
+	for (int i = 0; i < pointCloudFromDepth.rows; i++)
+	{
+	    float *pt = pointCloudFromDepth.ptr < float > ( i );
+	    pcl::PointXYZ basic_point;
+	    basic_point.x = pt[0];
+	    basic_point.y = pt[1];
+	    basic_point.z = pt[2];
+#if defined(USE_OPENCV_SBM) || defined(USE_OPENCV_SGBM)
+	    basic_point.z /= 8.0; //!< simple hack, but unknown reason.....
+#endif
 
-        DRAWTXT( disp8U, "disparity", 10, 20, 0.5 );
-        cv::imshow( "disparity", disp8U );
+	    if ( pt[2] < 129 ) //!< simple hack
+		pointCloudFromDepth_ptr->points.push_back ( basic_point );
+	}
+	pointCloudFromDepth_ptr->width = (int) pointCloudFromDepth_ptr->points.size ();
+	pointCloudFromDepth_ptr->height = 1;
+	viewer->updatePointCloud< pcl::PointXYZ > ( pointCloudFromDepth_ptr, "my points" );
+	viewer->spinOnce ();
 
-
-
-        for ( unsigned int i = 0; i < numCameras; i++ )
-        {
-
-
-            // drawCameraInfo( ppCameras[i], *pimageCamera[i] );
-
-
-            cv::imshow( std::string("cam") + std::to_string(i), *pimageCamera[i] );
-
-
-        }
-
-
-
-
-        cv::imshow( "sub",  cv::abs( *pimageCamera[0] - *pimageCamera[1] ) );
-
-
-
-        char keyValue = cv::waitKey( 10 );
-        if (keyValue == 'q' || keyValue == 27 /* ESC */ )
-        {
-            break;
-        }
-
+	
+	
+	
+	for ( unsigned int i = 0; i < numCameras; i++ )
+	{
+	    // drawCameraInfo( ppCameras[i], *pimageCamera[i] );
+	    cv::imshow( std::string("cam") + std::to_string(i), *pimageCamera[i] );
+	}
+	
+	cv::imshow( "sub",  cv::abs( *pimageCamera[0] - *pimageCamera[1] ) );
+	
+	
+	
+	char keyValue = cv::waitKey( 10 );
+	if (keyValue == 'q' || keyValue == 27 /* ESC */ )
+	{
+	    break;
+	}
+	
     }
 
     exit(0); //!< hack; code below may freeze.
