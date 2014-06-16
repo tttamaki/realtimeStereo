@@ -5,19 +5,17 @@ project( realtimeDisparity )
 set( CMAKE_VERBOSE_MAKEFILE 1) # to see all make process
 
 
+set(CMAKE_CXX_FLAGS_DEBUG   "${CMAKE_CXX_FLAGS_DEBUG}   -msse3 -pg -std=c++11 -Wall -g -O0 ")
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -msse3 -pg -std=c++11 -Wall -O3    ")
 
 
-# ELAS
-set (LIBELAS_SRC_DIR elas)
-include_directories("${LIBELAS_SRC_DIR}")
-FILE(GLOB LIBELAS_SRC_FILES "elas/*.cpp")
+add_subdirectory( elas )
+add_subdirectory( realtimeDisparity_main )
 
-
-add_executable( realtimeDisparity main.cpp ${LIBELAS_SRC_FILES} ${LIBS} )
+add_executable( ${PROJECT_NAME} $<TARGET_OBJECTS:elas> $<TARGET_OBJECTS:realtimeDisparity_main>)
 
 
 
-SET(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} "-msse3 -O3 -pg -std=c++11")
 
 
 
@@ -31,25 +29,25 @@ endif()
 find_package(Boost 1.47 COMPONENTS system )
 if(Boost_FOUND)
   include_directories(${Boost_INCLUDE_DIRS})
-  target_link_libraries(realtimeDisparity ${Boost_LIBRARIES})
+  target_link_libraries( ${PROJECT_NAME} ${Boost_LIBRARIES})
 endif()
 
 find_package(OpenGL)
 if(OPENGL_FOUND)
   include_directories(${OPENGL_INCLUDE_DIR})
-  target_link_libraries(realtimeDisparity ${OPENGL_LIBRARIES})
+  target_link_libraries( ${PROJECT_NAME} ${OPENGL_LIBRARIES})
 endif()
 
-find_package(CUDA)
+find_package(CUDA 6.0)
 if(CUDA_FOUND)
   include_directories(${CUDA_INCLUDE_DIRS})
-  target_link_libraries(realtimeDisparity ${CUDA_LIBRARIES})
+  target_link_libraries( ${PROJECT_NAME} ${CUDA_LIBRARIES})
 endif()
 
-find_package(VTK)
+find_package(VTK 5.8)
 if(VTK_FOUND)
   include_directories(${VTK_INCLUDE_DIRS})
-  target_link_libraries(realtimeDisparity ${VTK_LIBRARIES})
+  target_link_libraries( ${PROJECT_NAME} ${VTK_LIBRARIES})
 endif()
 
 
@@ -57,7 +55,7 @@ endif()
 # Point Grey FlyCapture2 SDK
 include_directories("/usr/include/flycapture")
 find_library(FLYCAPTURE2 flycapture)
-target_link_libraries(realtimeDisparity flycapture )
+target_link_libraries( ${PROJECT_NAME} flycapture )
 
 
 # OpenNI used by pcl
@@ -80,9 +78,6 @@ include_directories("${LOCAL_INSTALL_DIR}/include/pcl-1.7" )
 # link all *.so files directory
 FILE(GLOB LIBOPENCV_FILES "${LOCAL_INSTALL_DIR}/lib/libopencv*.so" )
 FILE(GLOB LIBPCL_FILES "${LOCAL_INSTALL_DIR}/lib/libpcl*.so" )
-target_link_libraries(realtimeDisparity  ${LIBOPENCV_FILES} ${LIBPCL_FILES} )
-
-
-
+target_link_libraries( ${PROJECT_NAME}  ${LIBOPENCV_FILES} ${LIBPCL_FILES} )
 
 

@@ -4,6 +4,8 @@
 
 #include <iostream>
 #include <vector>
+#include <string>
+#include <memory>
 
 #include <cv.hpp> //!< OpenCV C++ class. not "cv.h" which is for C.
 
@@ -372,7 +374,7 @@ void prepareCameras(unsigned int &numCameras,
 
         //!< Set all cameras to a specific mode and frame rate so they can be synchronized
         error = ppCameras[i]->SetVideoModeAndFrameRate(FlyCapture2::VIDEOMODE_640x480Y8, //!< size of 640x480, format Mono8bit (Y8)
-                                                       FlyCapture2::FRAMERATE_60 );
+                                                       FlyCapture2::FRAMERATE_30 );
         PRINT_ERROR_MSG( error,
                         "Error starting cameras. \n"
                         "This example requires cameras to be able to set to 640x480 Y8 at 30fps. \n"
@@ -527,7 +529,6 @@ int main( int /*argc*/, char** /*argv*/ )
     
     
     
-    FlyCapture2::Image rawImage; //!< buffer
     
     
 
@@ -561,12 +562,19 @@ int main( int /*argc*/, char** /*argv*/ )
 	elas.setParameters( param );
 #endif
 	
-      
         for ( unsigned int i = 0; i < numCameras; i++ )
         {
+	    FlyCapture2::Image rawImage; //!< buffer: Must be here in the loop, otherwise cameras do not synchronize.
             FlyCapture2::Error error;
             error = ppCameras[i]->RetrieveBuffer( &rawImage );
             PRINT_ERROR( error );
+	    
+// 	    FlyCapture2::TimeStamp timestamp = rawImage.GetTimeStamp();
+//             fprintf(stderr, 
+//                 "Cam %d  TimeStamp [%d %d]\n", 
+//                 i, 
+//                 timestamp.cycleSeconds, 
+//                 timestamp.cycleCount);
 
             memcpy( pimageCamera[i]->data, rawImage.GetData(), rawImage.GetDataSize() );
         }
@@ -619,7 +627,7 @@ int main( int /*argc*/, char** /*argv*/ )
 	    basic_point.y = pt[1];
 	    basic_point.z = pt[2];
 #if defined(USE_OPENCV_SBM) || defined(USE_OPENCV_SGBM)
-	    basic_point.z /= 8.0; //!< simple hack, but unknown reason.....
+	    basic_point.z /= 8.0; //!< simple hack, but unknown reason..... //!< still wrong. Depth maybe strange.
 #endif
 
 	    if ( pt[2] < 129 ) //!< simple hack
