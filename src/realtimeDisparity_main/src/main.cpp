@@ -24,8 +24,8 @@
 
 
 //#define USE_OPENCV_SBM
-//#define USE_OPENCV_SGBM
-#define USE_ELAS
+#define USE_OPENCV_SGBM
+//#define USE_ELAS
 
 #define CUSTOM_REPROJECT
 
@@ -602,14 +602,14 @@ int main( int /*argc*/, char** /*argv*/ )
 #endif
 
 #ifdef USE_ELAS
-//        int static skip = 0;
-//        if (skip % 15 ==0)
+        int static skip = 0;
+        if (skip % 15 ==0)
         {
  //         elas.process(imageCamera1.data, imageCamera0.data, (float*)imageDisparity.data,(float*)imageDisparity.data, dims);
             elas.process(pimageCamera[1]->data, pimageCamera[0]->data, (float*)imageDisparity.data,(float*)imageDisparity.data, dims);
 
         }
-//        skip++;
+        skip++;
 #endif
 
         //!< normalize disparity map for imshow
@@ -617,6 +617,7 @@ int main( int /*argc*/, char** /*argv*/ )
         minMaxLoc( imageDisparity, &minVal, &maxVal );
         imageDisparity.convertTo( disp8U, CV_8UC1, 255/(maxVal - minVal) );
 
+	//cout<<"maxval: "<<maxVal<<"  minval: "<<minVal<<endl;
 
 	#define DRAWTXT(img, str, x, y, s) \
 	cv::putText( img, str, cv::Point(x,y), cv::FONT_HERSHEY_SIMPLEX, s, cv::Scalar::all(255) )
@@ -624,11 +625,8 @@ int main( int /*argc*/, char** /*argv*/ )
 	DRAWTXT( disp8U, "disparity", 10, 20, 0.5 );
 	cv::imshow( "disparity", disp8U );
 	
-	
+	//cout<<imageDisparity<<endl;
 #ifdef CUSTOM_REPROJECT
-  //Create point cloud and fill it
-  //std::cout << "Creating Point Cloud..." <<std::endl;
-  //pcl::PointCloud<pcl::PointXYZRGB>::Ptr pointCloudFromDepth_ptr (new pcl::PointCloud<pcl::PointXYZRGB>);
   
   double px, py, pz;
   uchar pr, pg, pb;
@@ -637,19 +635,38 @@ int main( int /*argc*/, char** /*argv*/ )
   for (int i = 0; i < (*pimageCamera[1]).rows; i+= 1)
 {
     uchar* rgb_ptr = (*pimageCamera[1]).ptr<uchar>(i);
-    uchar* disp_ptr = disp8U.ptr<uchar>(i);
+    
+#if defined(USE_OPENCV_SBM) || defined(USE_OPENCV_SGBM)
+        short* disp_ptr = imageDisparity.ptr<short>(i);
+#else
+	float* disp_ptr = imageDisparity.ptr<float>(i);
+#endif
 
     for (int j = 0; j < (*pimageCamera[1]).cols; j+=1)
     {
-      //Get 3D coordinates
-      uchar d = disp_ptr[j];
-      if ( d == 0 ) continue; //Discard bad pixels
+      //Get 3D coordinates     disp_ptr[j];     imageDisparity.at<float>(i,j);
+#if defined(USE_OPENCV_SBM) || defined(USE_OPENCV_SGBM)
+      short d = disp_ptr[j];
+#else
+	float d = disp_ptr[j];
+#endif
+	
+	
+	//Discard bad pixels
+#if defined(USE_OPENCV_SBM) || defined(USE_OPENCV_SGBM)
+      if ( d == -16 ) continue;
+      d = d / 16;// This is not a hack. The Output of SGBM/default SBM is a 16 times scaled CV_16S, so we need to rescale the value.
+#else
+      if(isnan(d)) continue;
+      if ( d < FLT_EPSILON) continue;
+#endif
       
-      double pw = 1.0 * static_cast<double>(d) * Q32 + Q33; 
+      //double pw = 1.0 * static_cast<double>(d) * Q32 + Q33; 
+      double pw = 1.0 * d * Q32 + Q33; 
       
       px = static_cast<double>(j) + Q03;
       py = static_cast<double>(i) + Q13;
-      pz = Q23 * 1.0 ;
+      pz = Q23 * 1.0;
       
       px = px/pw;
       py = py/pw;
@@ -662,16 +679,17 @@ int main( int /*argc*/, char** /*argv*/ )
       
       //Insert info into point cloud structure
       pcl::PointXYZRGB point;
-      //point.x = pz;
-      //point.y = px;
-      //point.z = py;
-      point.x = px;
-      point.y = py;
-      point.z = pz;
+      point.x = pz;
+      point.y = px;
+      point.z = py;
+      //point.x = px;
+      //point.y = py;
+      //point.z = pz;
       uint32_t rgb = (static_cast<uint32_t>(pr) << 16 |
               static_cast<uint32_t>(pg) << 8 | static_cast<uint32_t>(pb));
       point.rgb = *reinterpret_cast<float*>(&rgb);
       pointCloudFromDepth_ptr->points.push_back (point);
+      
     }
 }
 #else
