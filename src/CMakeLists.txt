@@ -17,8 +17,6 @@ add_executable( ${PROJECT_NAME} $<TARGET_OBJECTS:elas> $<TARGET_OBJECTS:realtime
 
 
 
-
-
 # build-in packages
 
 find_package(Eigen3)
