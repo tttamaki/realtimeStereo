@@ -694,7 +694,11 @@ int main( int /*argc*/, char** /*argv*/ )
 }
 #else
 	//!< disparity map --> depth map --> point cloud
-	imageDisparity = imageDisparity / 16;
+#if defined(USE_OPENCV_SBM) || defined(USE_OPENCV_SGBM)
+	    //basic_point.z /= 8.0; //!< simple hack, but unknown reason..... //!< still wrong. Depth maybe strange.
+	    imageDisparity = imageDisparity / 16;
+#endif
+	
 	cv::Mat depth;
 	cv::reprojectImageTo3D( imageDisparity, depth, Q );
 	cv::Mat pointCloudFromDepth = depth.reshape( 3, depth.size().area() );
@@ -706,9 +710,6 @@ int main( int /*argc*/, char** /*argv*/ )
 	    basic_point.x = pt[0];
 	    basic_point.y = pt[1];
 	    basic_point.z = pt[2];
-#if defined(USE_OPENCV_SBM) || defined(USE_OPENCV_SGBM)
-	    //basic_point.z /= 8.0; //!< simple hack, but unknown reason..... //!< still wrong. Depth maybe strange.
-#endif
 
 	    //if ( pt[2] < 129 ) //!< simple hack
 		pointCloudFromDepth_ptr->points.push_back ( basic_point );
